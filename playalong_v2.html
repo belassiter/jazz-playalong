@@ -182,39 +182,31 @@
         function generateWalkingBassline(chords) {
             const bassEvents = [];
             const approachTechniques = ['half_step_below', 'half_step_above', 'fifth_above', 'fourth_below', 'whole_step_above'];
-
             for (let i = 0; i < chords.length; i++) {
                 const chordSymbol = chords[i];
                 const nextChordSymbol = chords[(i + 1) % chords.length];
                 const voicing = chordNotes[chordSymbol];
                 if (!voicing) continue;
-
                 const lineNotes = [];
-                
                 const root = voicing[0][0];
                 const third = voicing[0][1];
                 const fifth = voicing[0][2];
                 const seventh = voicing[0][3];
-
                 const bassRoot = Tone.Frequency(root).toFrequency() < 150 ? root : Tone.Frequency(root).transpose(-12).toNote();
                 lineNotes.push(bassRoot);
-
                 let beat2Note = Tone.Frequency(third).toFrequency() < 150 ? third : Tone.Frequency(third).transpose(-12).toNote();
                 if (beat2Note === lineNotes[0]) {
                     beat2Note = Tone.Frequency(fifth).toFrequency() < 150 ? fifth : Tone.Frequency(fifth).transpose(-12).toNote();
                 }
                 lineNotes.push(beat2Note);
-
                 let beat3Note = Tone.Frequency(fifth).toFrequency() < 150 ? fifth : Tone.Frequency(fifth).transpose(-12).toNote();
                 if (beat3Note === lineNotes[1]) {
                     beat3Note = Tone.Frequency(seventh).toFrequency() < 150 ? seventh : Tone.Frequency(seventh).transpose(-12).toNote();
                 }
                 lineNotes.push(beat3Note);
-
                 const nextVoicing = chordNotes[nextChordSymbol];
                 const nextRoot = nextVoicing ? nextVoicing[0][0] : root;
                 const bassNextRoot = Tone.Frequency(nextRoot).toFrequency() < 150 ? nextRoot : Tone.Frequency(nextRoot).transpose(-12).toNote();
-                
                 let approachNote;
                 if (chordSymbol === nextChordSymbol) {
                     approachNote = Tone.Frequency(seventh).toFrequency() < 150 ? seventh : Tone.Frequency(seventh).transpose(-12).toNote();
@@ -224,7 +216,7 @@
                 } else {
                     let attempts = 0;
                     do {
-                        const randomTechnique = approachTechniques[Math.floor(Math.random() * approachTechniques.length)];
+                        const randomTechnique = approachTechniques[Math.floor(randomFunc() * approachTechniques.length)];
                         switch (randomTechnique) {
                             case 'half_step_above': approachNote = Tone.Frequency(bassNextRoot).transpose(1).toNote(); break;
                             case 'whole_step_above': approachNote = Tone.Frequency(bassNextRoot).transpose(2).toNote(); break;
@@ -236,7 +228,6 @@
                     } while (approachNote === lineNotes[2] && attempts < 5);
                 }
                 lineNotes.push(approachNote);
-
                 bassEvents.push({ time: `${i}:0`, note: lineNotes[0], duration: '4n' });
                 bassEvents.push({ time: `${i}:1`, note: lineNotes[1], duration: '4n' });
                 bassEvents.push({ time: `${i}:2`, note: lineNotes[2], duration: '4n' });
@@ -245,21 +236,56 @@
             return bassEvents;
         }
 
+
+        // Utility to seed Math.random (simple implementation)
+        function seedRandom(seed) {
+            let x = Math.sin(seed++) * 10000;
+            return function() {
+                x = Math.sin(x) * 10000;
+                return x - Math.floor(x);
+            };
+        }
+
+        // Use a random seed based on time for initial load
+        let randomFunc = Math.random;
+        function reseedRandom() {
+            const seed = Date.now() + Math.floor(Math.random() * 100000);
+            randomFunc = seedRandom(seed);
+        }
+
+        function generateHarmonyEvents(chords) {
+            const rhythmicPatterns = [
+                [{ time: "0:0:2", duration: "8n" }, { time: "0:2:0", duration: "4n" }],
+                [{ time: "0:1:2", duration: "8n" }, { time: "0:3:0", duration: "4n" }],
+                [{ time: "0:1:0", duration: "4n" }, { time: "0:2:2", duration: "8n" }],
+                [{ time: "0:2:2", duration: "4n." }],
+                [{ time: "0:0:0", duration: "4n." }, { time: "0:1:2", duration: "8n" }]
+            ];
+            const harmonyEvents = [];
+            chords.forEach((chord, i) => {
+                const voicing = compingChordNotes[chord];
+                if (!voicing) return;
+                const pattern = rhythmicPatterns[Math.floor(randomFunc() * rhythmicPatterns.length)];
+                pattern.forEach(p => {
+                    const eventTime = Tone.Time(`${i}m`) + Tone.Time(p.time);
+                    harmonyEvents.push({ time: eventTime, note: voicing[0], duration: p.duration });
+                });
+            });
+            return harmonyEvents;
+        }
+
         function generateProgression() {
             if (isPlaying) {
                 togglePlayback();
             }
-            
             [bassPart, harmonyPart, visualsLoop].forEach(part => {
                 if (part) part.dispose();
             });
-
             let chords = progressions[dom.progressionSelect.value][dom.keySelect.value];
             if (dom.progressionSelect.value.includes('ii_v_i')) {
                 chords = [...chords, chords[chords.length - 1]];
             }
             currentProgressionChords = chords;
-            
             dom.progressionContainer.innerHTML = '';
             currentProgressionChords.forEach((chord, index) => {
                 const chordEl = document.createElement('span');
@@ -267,7 +293,6 @@
                 chordEl.className = 'chord-display-item font-bold text-xl sm:text-2xl text-gray-700 p-3 sm:p-4 rounded-md transition-all duration-200 ease-in-out flex items-center justify-center';
                 if ((index + 1) % 4 !== 0 && index < currentProgressionChords.length - 1) chordEl.classList.add('border-r-2', 'border-gray-300');
                 dom.progressionContainer.appendChild(chordEl);
-                
                 chordEl.addEventListener('click', async () => {
                     await ensureAudioContext();
                     if (harmonyInstrument.loaded === false) return;
@@ -277,28 +302,8 @@
                     harmonyInstrument.triggerAttackRelease(voicing[0], '1n');
                 });
             });
-
             const bassEvents = generateWalkingBassline(currentProgressionChords);
-            
-            const rhythmicPatterns = [
-                [{ time: "0:0:2", duration: "8n" }, { time: "0:2:0", duration: "4n" }],
-                [{ time: "0:1:2", duration: "8n" }, { time: "0:3:0", duration: "4n" }],
-                [{ time: "0:1:0", duration: "4n" }, { time: "0:2:2", duration: "8n" }],
-                [{ time: "0:2:2", duration: "4n." }],
-                [{ time: "0:0:0", duration: "4n." }, { time: "0:1:2", duration: "8n" }]
-            ];
-
-            const harmonyEvents = [];
-            currentProgressionChords.forEach((chord, i) => {
-                const voicing = compingChordNotes[chord];
-                if (!voicing) return;
-                const pattern = rhythmicPatterns[Math.floor(Math.random() * rhythmicPatterns.length)];
-                pattern.forEach(p => {
-                    const eventTime = Tone.Time(`${i}m`) + Tone.Time(p.time);
-                    harmonyEvents.push({ time: eventTime, note: voicing[0], duration: p.duration });
-                });
-            });
-            
+            const harmonyEvents = generateHarmonyEvents(currentProgressionChords);
             bassPart = new Tone.Part((time, value) => { bassInstrument.triggerAttackRelease(value.note, value.duration, time); }, bassEvents);
             harmonyPart = new Tone.Part((time, value) => { harmonyInstrument.triggerAttackRelease(value.note, value.duration, time); }, harmonyEvents);
             visualsLoop = new Tone.Loop(time => {
@@ -307,12 +312,31 @@
                     document.querySelectorAll('.chord-display-item').forEach((disp, index) => disp.classList.toggle('active-chord', index === measure % currentProgressionChords.length));
                 }, time);
             }, '1m');
-
             const loopEnd = `${currentProgressionChords.length}m`;
             [bassPart, harmonyPart, visualsLoop].forEach(part => {
                 part.loopEnd = loopEnd;
                 part.loop = true;
             });
+
+            // On each loop, regenerate harmony and bass events for new rhythms and bassline
+            harmonyPart.callback = (time, value) => {
+                harmonyInstrument.triggerAttackRelease(value.note, value.duration, time);
+            };
+            bassPart.callback = (time, value) => {
+                bassInstrument.triggerAttackRelease(value.note, value.duration, time);
+            };
+            // Schedule regeneration just before the loop boundary
+            Tone.Transport.scheduleRepeat((time) => {
+                // Regenerate events slightly before the loop boundary
+                const newHarmonyEvents = generateHarmonyEvents(currentProgressionChords);
+                harmonyPart.clear();
+                newHarmonyEvents.forEach(event => harmonyPart.add(event));
+                const newBassEvents = generateWalkingBassline(currentProgressionChords);
+                bassPart.clear();
+                newBassEvents.forEach(event => bassPart.add(event));
+                // Optionally, retrigger the first bass note at the loop start
+                bassInstrument.triggerAttackRelease(newBassEvents[0].note, newBassEvents[0].duration, time);
+            }, loopEnd, Tone.Transport.seconds + 0.01);
         }
 
         async function togglePlayback() {
@@ -386,6 +410,7 @@
         dom.instrumentSelect.addEventListener('change', e => setInstrument(e.target.value));
 
         window.onload = () => {
+            reseedRandom(); // Ensure a new random seed each time page loads
             generateCompleteChordDictionaries();
             setInstrument(dom.instrumentSelect.value);
             generateProgression();
