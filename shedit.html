@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shed It!</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom styles for range inputs */
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            cursor: pointer;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            height: 8px;
+            background: #d1d5db; /* gray-300 */
+            border-radius: 4px;
+        }
+        input[type=range]::-moz-range-track {
+            height: 8px;
+            background: #d1d5db;
+            border-radius: 4px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            margin-top: -4px;
+            height: 16px;
+            width: 16px;
+            background-color: #ffffff; /* white */
+            border-radius: 50%;
+            border: 1px solid #9ca3af; /* gray-400 */
+        }
+         input[type=range]::-moz-range-thumb {
+            height: 16px;
+            width: 16px;
+            background-color: #ffffff;
+            border-radius: 50%;
+            border: 1px solid #9ca3af;
+        }
+        /* Style for disabled button */
+        button:disabled {
+            cursor: not-allowed;
+            background-color: #9ca3af; /* gray-400 */
+        }
+        /* Style for the chord spans to ensure smooth transition */
+        .chord-span {
+            transition: background-color 0.1s ease-in-out, color 0.1s ease-in-out;
+            padding: 4px 8px; /* Added horizontal padding */
+            border-radius: 6px;
+            display: inline-block; /* Changed for better padding behavior */
+            width: 25%; 
+            text-align: center;
+        }
+        .chord-span.is-highlighted {
+            background-color: #2563eb; /* bg-blue-600 */
+            color: white;
+        }
+        .mute-btn {
+            background-color: #22c55e; /* green-500 */
+        }
+        .mute-btn:hover {
+            background-color: #16a34a; /* green-600 */
+        }
+        .mute-btn.muted {
+            background-color: #ef4444; /* red-500 */
+        }
+         .mute-btn.muted:hover {
+            background-color: #dc2626; /* red-600 */
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-gray-800 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-5xl mx-auto p-4 sm:p-6 md:p-8 bg-white rounded-2xl shadow-2xl border border-gray-200">
+        <div class="text-center mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900">Shed It!</h1>
+            <p class="text-gray-600 mt-2 text-lg">The jazz play-along</p>
+            <p class="text-gray-500 mt-1 text-sm">by Brian Einstein Lassiter</p>
+        </div>
+
+        <!-- Progression Container -->
+        <div class="mb-6 bg-slate-50 p-4 sm:p-6 border border-gray-200 rounded-xl">
+            <div id="progression-display" class="text-center">
+                <!-- Dynamic content will be injected here -->
+            </div>
+        </div>
+        
+        <!-- Transport & Display -->
+        <div class="flex flex-col items-center mb-8">
+            <button id="play-stop-btn" class="w-full md:w-1/2 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg text-xl transition-all duration-200 shadow-lg" disabled>
+                Loading Samples...
+            </button>
+        </div>
+
+        <!-- Controls Container -->
+        <div class="bg-slate-50 border border-gray-200 rounded-xl p-4 md:p-6 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-6">
+                <!-- Progression -->
+                <div>
+                    <label for="progression" class="block mb-2 text-sm font-medium text-gray-700">Progression</label>
+                    <select id="progression" class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
+                        <option value="blues">12-Bar Blues</option>
+                        <option value="birdBlues">Bird Blues</option>
+                        <option value="rhythmChanges">Rhythm Changes</option>
+                        <option value="major-ii-v-i">Major ii-V-I</option>
+                        <option value="minor-ii-v-i">Minor ii-V-i</option>
+                        <option value="modal">Modal</option>
+                        <option value="descending-ii-v-is">Descending ii-V-Is</option>
+                        <option value="descending-minor-ii-v-is">Descending Minor ii-V-is</option>
+                        <option value="a-train">Take the A-Train</option>
+                        <option value="descending7ths">Descending 7th Chords</option>
+                        <option value="randomDiatonic">Random - Diatonic</option>
+                        <option value="randomAdvanced">Random - Advanced</option>
+                    </select>
+                </div>
+                 <!-- Key -->
+                <div>
+                    <label for="key" class="block mb-2 text-sm font-medium text-gray-700">Concert Key</label>
+                    <select id="key" class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
+                        <option value="C">C</option>
+                        <option value="Db">D&#x266d;</option>
+                        <option value="D">D</option>
+                        <option value="Eb">E&#x266d;</option>
+                        <option value="E">E</option>
+                        <option value="F">F</option>
+                        <option value="F#">F&#x266f;</option>
+                        <option value="G">G</option>
+                        <option value="Ab">A&#x266d;</option>
+                        <option value="A">A</option>
+                        <option value="Bb">B&#x266d;</option>
+                        <option value="B">B</option>
+                    </select>
+                </div>
+                <!-- Transposition -->
+                <div>
+                    <label for="transposition" class="block mb-2 text-sm font-medium text-gray-700">Transposition</label>
+                    <select id="transposition" class="bg-white border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
+                        <option value="0">None</option>
+                        <option value="2">B&#x266d; (Trumpet, Tenor Sax)</option>
+                        <option value="9">E&#x266d; (Alto Sax, Bari Sax)</option>
+                        <option value="7">F (French Horn)</option>
+                        <option value="-2">G (Alto Flute)</option>
+                        <option value="-3">A (A-Clarinet)</option>
+                    </select>
+                </div>
+            </div>
+             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6 mt-6">
+                <!-- Tempo -->
+                <div>
+                    <label for="tempo" class="block mb-2 text-sm font-medium text-gray-700">Tempo: <span id="tempo-value">120</span> BPM</label>
+                    <input id="tempo" type="range" min="40" max="400" value="120" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                </div>
+                <!-- Volume -->
+                <div>
+                    <label for="volume" class="block mb-2 text-sm font-medium text-gray-700">Volume: <span id="volume-value">75</span>%</label>
+                    <input id="volume" type="range" min="0" max="100" value="75" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </div>
+            <!-- Mute Buttons -->
+            <div class="mt-6 border-t border-gray-200 pt-6">
+                 <h3 class="text-center text-sm font-medium text-gray-700 mb-4">Track Control</h3>
+                <div class="grid grid-cols-3 gap-4">
+                    <button id="mute-piano-btn" class="mute-btn text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors">Piano</button>
+                    <button id="mute-bass-btn" class="mute-btn text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors">Bass</button>
+                    <button id="mute-drums-btn" class="mute-btn text-white font-bold py-2 px-4 rounded-lg text-sm transition-colors">Drums</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- License -->
+        <div class="mt-8 text-center text-xs text-gray-500">
+            <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/#ref-indicate-changes" target="_blank" rel="noopener noreferrer">
+                <img src="https://mirrors.creativecommons.org/presskit/buttons/88x31/svg/by-nc-sa.svg" alt="Creative Commons License" class="mx-auto mb-2">
+                This work is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License.
+            </a>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Elements ---
+            const playStopBtn = document.getElementById('play-stop-btn');
+            const tempoSlider = document.getElementById('tempo');
+            const tempoValue = document.getElementById('tempo-value');
+            const volumeSlider = document.getElementById('volume');
+            const volumeValue = document.getElementById('volume-value');
+            const keySelector = document.getElementById('key');
+            const transpositionSelector = document.getElementById('transposition');
+            const progressionSelector = document.getElementById('progression');
+            const progressionDisplay = document.getElementById('progression-display');
+            const mutePianoBtn = document.getElementById('mute-piano-btn');
+            const muteBassBtn = document.getElementById('mute-bass-btn');
+            const muteDrumsBtn = document.getElementById('mute-drums-btn');
+
+            let isPlaying = false;
+            let pianoPart = null;
+            let bassPart = null;
+            let drumPattern = null;
+            let ridePattern = null;
+            let hihatPattern = null;
+            let highlightPart = null;
+            let lastHighlightedEl = null;
+            let activeProgression = []; // Holds the current chord progression
+
+            // --- Note & Chord Data ---
+            const notesSharp = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+            const notesFlat = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+            const keySignatures = {
+                'C': 'sharp', 'G': 'sharp', 'D': 'sharp', 'A': 'sharp', 'E': 'sharp', 'B': 'sharp', 'F#': 'sharp',
+                'F': 'flat', 'Bb': 'flat', 'Eb': 'flat', 'Ab': 'flat', 'Db': 'flat', 'Gb': 'flat'
+            };
+            
+            const progressions = {
+                blues: [
+                    'C7', 'C7', 'C7', 'C7', 'F7', 'F7', 'F7', 'F7', 'C7', 'C7', 'C7', 'C7', 'C7', 'C7', 'C7', 'C7',
+                    'F7', 'F7', 'F7', 'F7', 'F7', 'F7', 'F7', 'F7', 'C7', 'C7', 'C7', 'C7', 'C7', 'C7', 'C7', 'C7',
+                    'G7', 'G7', 'G7', 'G7', 'F7', 'F7', 'F7', 'F7', 'C7', 'C7', 'C7', 'C7', 'G7', 'G7', 'G7', 'G7'
+                ],
+                birdBlues: [
+                    'CMaj7', 'CMaj7', 'CMaj7', 'CMaj7',
+                    'Bm7b5', 'Bm7b5', 'E7', 'E7',
+                    'Am7', 'Am7', 'D7', 'D7',
+                    'Gm7', 'Gm7', 'C7', 'C7',
+                    'FMaj7', 'FMaj7', 'FMaj7', 'FMaj7',
+                    'Fm7', 'Fm7', 'Bb7', 'Bb7',
+                    'Em7', 'Em7', 'A7', 'A7',
+                    'Ebm7', 'Ebm7', 'Ab7', 'Ab7',
+                    'Dm7', 'Dm7', 'Dm7', 'Dm7',
+                    'G7', 'G7', 'G7', 'G7',
+                    'CMaj7', 'CMaj7', 'A7', 'A7',
+                    'Dm7', 'Dm7', 'G7', 'G7'
+                ],
+                rhythmChanges: [
+                    // A1
+                    'CMaj7', 'CMaj7', 'Am7', 'Am7',   'Dm7', 'Dm7', 'G7', 'G7',
+                    'CMaj7', 'CMaj7', 'Am7', 'Am7',   'Dm7', 'Dm7', 'G7', 'G7',
+                    'CMaj7', 'CMaj7', 'C7', 'C7',      'FMaj7', 'FMaj7', 'Fm6', 'Fm6',
+                    'Em7', 'Em7', 'A7', 'A7',      'Dm7', 'Dm7', 'G7', 'G7',
+                    // A2
+                    'CMaj7', 'CMaj7', 'Am7', 'Am7',   'Dm7', 'Dm7', 'G7', 'G7',
+                    'CMaj7', 'CMaj7', 'Am7', 'Am7',   'Dm7', 'Dm7', 'G7', 'G7',
+                    'CMaj7', 'CMaj7', 'C7', 'C7',      'FMaj7', 'FMaj7', 'Fm6', 'Fm6',
+                    'Em7', 'Em7', 'A7', 'A7',      'Dm7', 'Dm7', 'G7', 'G7',
+                    // B
+                    'E7', 'E7', 'E7', 'E7', 'E7', 'E7', 'E7', 'E7',
+                    'A7', 'A7', 'A7', 'A7', 'A7', 'A7', 'A7', 'A7',
+                    'D7', 'D7', 'D7', 'D7', 'D7', 'D7', 'D7', 'D7',
+                    'G7', 'G7', 'G7', 'G7', 'G7', 'G7', 'G7', 'G7',
+                    // A3
+                    'CMaj7', 'CMaj7', 'Am7', 'Am7',   'Dm7', 'Dm7', 'G7', 'G7',
+                    'CMaj7', 'CMaj7', 'Am7', 'Am7',   'Dm7', 'Dm7', 'G7', 'G7',
+                    'CMaj7', 'CMaj7', 'C7', 'C7',      'FMaj7', 'FMaj7', 'Fm6', 'Fm6',
+                    'Em7', 'Em7', 'A7', 'A7',      'Dm7', 'Dm7', 'G7', 'G7'
+                ],
+                'major-ii-v-i': [
+                    'Dm7', 'Dm7', 'Dm7', 'Dm7', 
+                    'G7', 'G7', 'G7', 'G7', 
+                    'CMaj7', 'CMaj7', 'CMaj7', 'CMaj7', 
+                    'CMaj7', 'CMaj7', 'CMaj7', 'CMaj7'
+                ],
+                'minor-ii-v-i': [
+                    'Dm7b5', 'Dm7b5', 'Dm7b5', 'Dm7b5',
+                    'G7b9', 'G7b9', 'G7b9', 'G7b9',
+                    'CmMaj7', 'CmMaj7', 'CmMaj7', 'CmMaj7',
+                    'CmMaj7', 'CmMaj7', 'CmMaj7', 'CmMaj7'
+                ],
+                'modal': [
+                    ...Array(16 * 4).fill('Cm7'),
+                    ...Array(8 * 4).fill('Dbm7'),
+                    ...Array(8 * 4).fill('Cm7')
+                ],
+                'descending-ii-v-is': [
+                    ...['Dm7', 'G7', 'CMaj7', 'CMaj7'].flatMap(c => Array(4).fill(c)),
+                    ...['Cm7', 'F7', 'BbMaj7', 'BbMaj7'].flatMap(c => Array(4).fill(c)),
+                    ...['Bbm7', 'Eb7', 'AbMaj7', 'AbMaj7'].flatMap(c => Array(4).fill(c)),
+                    ...['G#m7', 'C#7', 'F#Maj7', 'F#Maj7'].flatMap(c => Array(4).fill(c)),
+                    ...['F#m7', 'B7', 'EMaj7', 'EMaj7'].flatMap(c => Array(4).fill(c)),
+                    ...['Em7', 'A7', 'DMaj7', 'DMaj7'].flatMap(c => Array(4).fill(c))
+                ],
+                'descending-minor-ii-v-is': [
+                    ...['Dm7b5', 'G7b9', 'CmMaj7', 'CmMaj7'].flatMap(c => Array(4).fill(c)),
+                    ...['Cm7b5', 'F7b9', 'BbmMaj7', 'BbmMaj7'].flatMap(c => Array(4).fill(c)),
+                    ...['Bbm7b5', 'Eb7b9', 'AbmMaj7', 'AbmMaj7'].flatMap(c => Array(4).fill(c)),
+                    ...['G#m7b5', 'C#7b9', 'F#mMaj7', 'F#mMaj7'].flatMap(c => Array(4).fill(c)),
+                    ...['F#m7b5', 'B7b9', 'EmMaj7', 'EmMaj7'].flatMap(c => Array(4).fill(c)),
+                    ...['Em7b5', 'A7b9', 'DmMaj7', 'DmMaj7'].flatMap(c => Array(4).fill(c))
+                ],
+                'a-train': [
+                    // A1
+                    'CMaj7', 'CMaj7', 'CMaj7', 'CMaj7', 'CMaj7', 'CMaj7', 'CMaj7', 'CMaj7',
+                    'D7b5', 'D7b5', 'D7b5', 'D7b5', 'D7b5', 'D7b5', 'D7b5', 'D7b5',
+                    'Dm7', 'Dm7', 'Dm7', 'Dm7', 'G7', 'G7', 'G7', 'G7',
+                    'CMaj7', 'CMaj7', 'CMaj7', 'CMaj7', 'Em7', 'Em7', 'A7', 'A7',
+                    // A2
+                    'CMaj7', 'CMaj7', 'CMaj7', 'CMaj7', 'CMaj7', 'CMaj7', 'CMaj7', 'CMaj7',
+                    'D7b5', 'D7b5', 'D7b5', 'D7b5', 'D7b5', 'D7b5', 'D7b5', 'D7b5',
+                    'Dm7', 'Dm7', 'Dm7', 'Dm7', 'G7', 'G7', 'G7', 'G7',
+                    'CMaj7', 'CMaj7', 'CMaj7', 'CMaj7', 'G7', 'G7', 'G7', 'G7',
+                    // B
+                    'FMaj7', 'FMaj7', 'FMaj7', 'FMaj7', 'FMaj7', 'FMaj7', 'FMaj7', 'FMaj7',
+                    'D7', 'D7', 'D7', 'D7', 'D7', 'D7', 'D7', 'D7',
+                    'Dm7', 'Dm7', 'Dm7', 'Dm7', 'G7', 'G7', 'G7', 'G7',
+                    'CMaj7', 'CMaj7', 'CMaj7', 'CMaj7', 'G7', 'G7', 'G7', 'G7',
+                    // A3
+                    'CMaj7', 'CMaj7', 'CMaj7', 'CMaj7', 'CMaj7', 'CMaj7', 'CMaj7', 'CMaj7',
+                    'D7b5', 'D7b5', 'D7b5', 'D7b5', 'D7b5', 'D7b5', 'D7b5', 'D7b5',
+                    'Dm7', 'Dm7', 'Dm7', 'Dm7', 'G7', 'G7', 'G7', 'G7',
+                    'CMaj7', 'CMaj7', 'CMaj7', 'CMaj7', 'G7', 'G7', 'G7', 'G7'
+                ],
+                descending7ths: [
+                    'C7', 'B7', 'Bb7', 'A7', 'Ab7', 'G7', 'F#7', 'F7',
+                    'E7', 'Eb7', 'D7', 'Db7', 'C7', 'C7', 'C7', 'C7'
+                ]
+            };
+
+            const PIANO_RHYTHMS = [
+                // Each sub-array represents a rhythmic pattern for one bar.
+                // The time values are relative to the start of the bar.
+                [{ time: '0:0', duration: '8n' }, { time: '1:2', duration: '8n' }],
+                [{ time: '0:0', duration: '4n.' }, { time: '1:2', duration: '8n' }],
+                [{ time: '0:2', duration: '8n' }, { time: '2:0', duration: '4n' }],
+                [{ time: '0:0', duration: '8n' }, { time: '0:2', duration: '8n' }, { time: '1:2', duration: '8n' }],
+                [{ time: '0:2', duration: '8n' }, { time: '2:2', duration: '8n' }],
+                [{ time: '1:2', duration: '8n' }, { time: '2:2', duration: '4n' }]
+            ];
+
+            const PIANO_RHYTHMS_2_BEAT = [
+                // 1) (eighth) eighth (quarter)
+                [{ time: '0:2', duration: '8n' }],
+                // 2) eighth eighth (quarter)
+                [{ time: '0:0', duration: '8n' }, { time: '0:2', duration: '8n' }],
+                // 3) quarter (quarter)
+                [{ time: '0:0', duration: '4n' }],
+                // 4) half
+                [{ time: '0:0', duration: '2n' }],
+                // 5) (eighth) dotted-quarter
+                [{ time: '0:2', duration: '4n.' }]
+            ];
+            
+            const VOICING_LIBRARY = {
+                'Maj7': [[4, 11, 14], [11, 4, 9]], // 3-7-9, 7-3-13
+                'm7': [[3, 10, 14], [10, 14, 3, 7]], // 3-7-9, 7-9-3-5
+                '7': [[4, 10, 14], [10, 4, 9]], // 3-7-9, 7-3-13
+                'm7b5': [[3, 6, 10, 14], [10, 3, 6]], // 3-5-7-9, 7-3-5
+                '7b9': [[4, 10, 13], [10, 13, 4]], // 3-7-b9, 7-b9-3
+                'mMaj7': [[3, 7, 11, 14], [11, 14, 3, 7]], // 3-5-7-9, 7-9-3-5
+                'default': [[0, 4, 7, 10]] 
+            };
+
+
+            // --- Tone.js Setup ---
+            const pianoVolume = new Tone.Volume(0).toDestination();
+            const bassVolume = new Tone.Volume(0).toDestination();
+            const drumsVolume = new Tone.Volume(0).toDestination();
+
+            const piano = new Tone.Sampler({
+                urls: { C4: "C4.mp3", "D#4": "Ds4.mp3", "F#4": "Fs4.mp3", A4: "A4.mp3" },
+                release: 1,
+                baseUrl: "https://tonejs.github.io/audio/salamander/",
+                volume: -6
+            }).connect(pianoVolume);
+            
+            const bass = new Tone.Sampler({
+                urls: {
+                    'Eb2': 'https://belassiter.com/playalong/jazz-basso-plunge-sustained_128bpm_C_major.mp3'
+                },
+                volume: -2
+            }).connect(bassVolume);
+
+            const kick = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 10, oscillator: { type: 'sine' }, envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.4, attackCurve: 'exponential' }, volume: 0 }).connect(drumsVolume);
+            const snare = new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0 }, volume: -10 }).connect(drumsVolume);
+            
+            const rideCymbal = new Tone.Sampler({
+                urls: {
+                    'C4': 'https://belassiter.com/playalong/oh_ride_ride_vl3_rr4.mp3'
+                },
+                release: 1.5,
+                volume: -5
+            }).connect(drumsVolume);
+            
+            const hihat = new Tone.Sampler({
+                urls: {
+                    'C4': 'https://belassiter.com/playalong/snaremic_hh_pedal_vl2_rr4.mp3'
+                },
+                volume: -7
+            }).connect(drumsVolume);
+            
+            Tone.loaded().then(() => {
+                playStopBtn.disabled = false;
+                playStopBtn.textContent = 'Play';
+            }).catch(err => {
+                console.error("Error loading samples:", err);
+                playStopBtn.textContent = 'Loading Error';
+            });
+
+
+            // --- Helper Functions ---
+            const formatChordSymbol = (chord) => {
+                if (!chord) return '';
+
+                // Use a regular expression to split the chord into root and quality.
+                const parts = chord.match(/^([A-G][b#]?)(.*)/);
+                if (!parts) return chord; // Return original if it doesn't match
+
+                let root = parts[1];    // e.g., "C#", "Bb", "F"
+                let quality = parts[2]; // e.g., "Maj7", "m7b5", "7"
+
+                // 1. Format the root part separately
+                root = root.replace(/#/g, '&#x266f;').replace(/b/g, '&#x266d;');
+
+                // 2. Format the quality part separately
+                quality = quality.replace(/Maj7/g, '&#x394;7')
+                                 .replace(/m7b5/g, '&#xF8;7')
+                                 .replace(/dim7/g, '&#xB0;7')
+                                 .replace(/b9/g, '&#x266d;9')
+                                 .replace(/#9/g, '&#x266f;9');
+
+                // 3. Recombine the formatted parts
+                return root + quality;
+            };
+
+            const getNoteParts = (noteName) => {
+                if (typeof noteName !== 'string') return null;
+                const match = noteName.match(/^([A-G][b#]?)(\d*)/);
+                if (!match) return null;
+                return { name: match[1], octave: match[2] ? parseInt(match[2]) : null };
+            };
+
+            const getNoteIndex = (noteName) => {
+                const parts = getNoteParts(noteName);
+                if (!parts) return -1;
+                let index = notesSharp.indexOf(parts.name);
+                if (index === -1) index = notesFlat.indexOf(parts.name);
+                return index;
+            };
+
+            const getNoteFromIndex = (index, useSharps = false) => {
+                const notes = useSharps ? notesSharp : notesFlat;
+                const len = notes.length;
+                const adjustedIndex = ((index % len) + len) % len;
+                return notes[adjustedIndex];
+            };
+
+            const shouldUseSharps = (noteName, keySignaturePrefersSharps) => {
+                if (noteName.includes('b')) return false;
+                if (noteName.includes('#')) return true;
+                return keySignaturePrefersSharps;
+            };
+
+            function transposeNote(noteName, semitones, useSharps) {
+                const parts = getNoteParts(noteName);
+                if (!parts) return noteName;
+                
+                const currentIndex = getNoteIndex(parts.name);
+                if (currentIndex === -1) return noteName;
+                
+                const newIndex = currentIndex + semitones;
+                const newNoteName = getNoteFromIndex(newIndex, useSharps);
+                const octaveOffset = Math.floor((currentIndex + semitones) / 12);
+                
+                const newOctave = (parts.octave || 0) + octaveOffset;
+                return `${newNoteName}${newOctave}`;
+            }
+
+            const getChordTones = (chordSymbol, useSharps) => {
+                const parts = getNoteParts(chordSymbol);
+                if (!parts) return null;
+                const root = parts.name;
+                let thirdInterval, fifthInterval, seventhInterval, flatNine;
+
+                if (chordSymbol.includes('mMaj7')) {
+                    thirdInterval = 3; fifthInterval = 7; seventhInterval = 11;
+                } else if (chordSymbol.includes('Maj7')) {
+                    thirdInterval = 4; fifthInterval = 7; seventhInterval = 11;
+                } else if (chordSymbol.includes('m7b5')) {
+                    thirdInterval = 3; fifthInterval = 6; seventhInterval = 10;
+                } else if (chordSymbol.includes('dim7')) { // Fully diminished
+                    thirdInterval = 3; fifthInterval = 6; seventhInterval = 9;
+                } else if (chordSymbol.includes('7b5')) {
+                    thirdInterval = 4; fifthInterval = 6; seventhInterval = 10;
+                } else if (chordSymbol.includes('m6')) {
+                    thirdInterval = 3; fifthInterval = 7; seventhInterval = 9;
+                } else if (chordSymbol.includes('m7')) {
+                    thirdInterval = 3; fifthInterval = 7; seventhInterval = 10;
+                } else { // Default to Dominant 7th
+                    thirdInterval = 4; fifthInterval = 7; seventhInterval = 10;
+                    if (chordSymbol.includes('b9')) {
+                        flatNine = transposeNote(root + "4", 1, useSharps).slice(0, -1);
+                    }
+                }
+
+                const third = transposeNote(root + "3", thirdInterval, useSharps).slice(0, -1);
+                const fifth = transposeNote(root + "3", fifthInterval, useSharps).slice(0, -1);
+                const seventh = transposeNote(root + "3", seventhInterval, useSharps).slice(0, -1);
+                const second = transposeNote(root + "3", 2, useSharps).slice(0, -1);
+                return { root, third, fifth, seventh, second, flatNine };
+            };
+
+            const getChordVoicings = (chordSymbol, useSharps) => {
+                const parts = getNoteParts(chordSymbol);
+                if (!parts) return [];
+                const root = parts.name;
+                let qualityKey = 'default';
+
+                if (chordSymbol.includes('mMaj7')) qualityKey = 'mMaj7';
+                else if (chordSymbol.includes('Maj7')) qualityKey = 'Maj7';
+                else if (chordSymbol.includes('m7b5')) qualityKey = 'm7b5';
+                else if (chordSymbol.includes('7b9')) qualityKey = '7b9';
+                else if (chordSymbol.includes('m7')) qualityKey = 'm7';
+                else if (chordSymbol.includes('7')) qualityKey = '7';
+
+                const voicingsData = VOICING_LIBRARY[qualityKey] || VOICING_LIBRARY['default'];
+                
+                return voicingsData.map(voicingIntervals => 
+                    voicingIntervals.map(interval => transposeNote(`${root}3`, interval, useSharps))
+                );
+            };
+            
+            function displayFullProgression(chords, numMeasuresToDisplay) {
+                progressionDisplay.innerHTML = '';
+                const beatsPerMeasure = 4;
+                const measuresPerRow = 4;
+                
+                progressionDisplay.className = 'grid gap-y-2';
+                progressionDisplay.style.gridTemplateColumns = `repeat(${measuresPerRow}, minmax(0, 1fr))`;
+
+                for (let i = 0; i < numMeasuresToDisplay; i++) {
+                    const measureWrapper = document.createElement('div');
+                    measureWrapper.className = 'flex justify-start items-center measure-wrapper';
+                    measureWrapper.id = `measure-wrapper-${i}`;
+                    
+                    if (i % measuresPerRow !== 0) {
+                        measureWrapper.classList.add('border-l-2', 'border-gray-200', 'pl-2');
+                    }
+                    
+                    for (let j = 0; j < beatsPerMeasure; j++) {
+                        const chordIndex = i * beatsPerMeasure + j;
+                        const chord = chords[chordIndex];
+                        
+                        const chordSpan = document.createElement('span');
+                        chordSpan.className = 'chord-span flex-1 text-[10px] sm:text-sm md:text-base lg:text-lg font-semibold text-gray-700';
+                        chordSpan.id = `chord-span-${chordIndex}`;
+
+                        if (j > 0 && chord === chords[chordIndex - 1]) {
+                            chordSpan.innerHTML = '&nbsp;';
+                        } else {
+                            chordSpan.innerHTML = formatChordSymbol(chord);
+                        }
+                        measureWrapper.appendChild(chordSpan);
+                    }
+                    progressionDisplay.appendChild(measureWrapper);
+                }
+            }
+
+            // --- WALKING BASSLINE GENERATOR ---
+            function generateWalkingBassline(chords, keySignaturePrefersSharps) {
+                const bassline = [];
+                const baseOctave = 2;
+                let lastOctave = baseOctave;
+
+                for (let i = 0; i < chords.length; i++) {
+                    const currentChord = chords[i];
+                    const chordRootName = getNoteParts(currentChord)?.name || 'C';
+                    const useSharpsForChord = shouldUseSharps(chordRootName, keySignaturePrefersSharps);
+
+                    const prevChord = i > 0 ? chords[i - 1] : null;
+                    const nextChord = chords[(i + 1) % chords.length];
+                    const tones = getChordTones(currentChord, useSharpsForChord);
+                    let noteName;
+
+                    const prevNoteName = i > 0 ? getNoteParts(bassline[i - 1])?.name : null;
+
+                    const selectNote = (options) => {
+                        let availableOptions = options.filter(n => n !== prevNoteName);
+                        if (availableOptions.length === 0) availableOptions = options;
+                        return availableOptions[Math.floor(Math.random() * availableOptions.length)];
+                    };
+
+                    if (!tones) {
+                        bassline.push(i > 0 ? bassline[i - 1] : 'C2');
+                        continue;
+                    }
+
+                    const isNewChord = (i === 0 || currentChord !== prevChord);
+                    const isApproachBeat = currentChord !== nextChord;
+                    const isBeatOne = i % 4 === 0;
+
+                    if (isNewChord) {
+                        noteName = tones.root;
+                    } 
+                    else if (isApproachBeat) {
+                        const nextTones = getChordTones(nextChord, useSharpsForChord);
+                        if (nextTones) {
+                            const targetRootIndex = getNoteIndex(nextTones.root);
+                            const approachOptions = [
+                                getNoteFromIndex(targetRootIndex - 1, useSharpsForChord),
+                                getNoteFromIndex(targetRootIndex + 1, useSharpsForChord),
+                                getNoteFromIndex(targetRootIndex - 2, useSharpsForChord),
+                                getNoteFromIndex(targetRootIndex + 2, useSharpsForChord),
+                                getNoteFromIndex(targetRootIndex + 7, useSharpsForChord),
+                                getNoteFromIndex(targetRootIndex - 5, useSharpsForChord),
+                            ];
+                            noteName = selectNote(approachOptions);
+                        } else {
+                            noteName = tones.fifth;
+                        }
+                    }
+                    else if (isBeatOne) {
+                        noteName = selectNote([tones.root, tones.fifth]);
+                    }
+                    else {
+                        const options = [tones.third, tones.fifth, tones.seventh, tones.root, tones.second];
+                        noteName = selectNote(options);
+                    }
+                    
+                    let currentOctave = lastOctave;
+                    if (i > 0 && bassline[i-1]) {
+                        const lastNoteParts = getNoteParts(bassline[i - 1]);
+                        if (lastNoteParts) {
+                            const lastNoteIndex = getNoteIndex(lastNoteParts.name);
+                            const currentNoteIndex = getNoteIndex(noteName);
+                            if (Math.abs(currentNoteIndex - lastNoteIndex) > 7) {
+                                 if (currentNoteIndex > lastNoteIndex) currentOctave--;
+                                 else currentOctave++;
+                            }
+                        }
+                    }
+                    
+                    let noteWithOctave = `${noteName}${currentOctave}`;
+                    let midi = Tone.Frequency(noteWithOctave).toMidi();
+                    while (midi < 28) { midi += 12; currentOctave++; }
+                    while (midi > 52) { midi -= 12; currentOctave--; } // Changed from 55 to 52
+                    
+                    bassline.push(`${noteName}${currentOctave}`);
+                    lastOctave = currentOctave;
+                }
+                return bassline;
+            }
+
+            // --- Main Sequencer Logic ---
+            function setupSequence(baseProgressionLengthInBars) {
+                // Clear any existing parts
+                if (pianoPart) pianoPart.dispose();
+                if (bassPart) bassPart.dispose();
+                if (highlightPart) highlightPart.dispose();
+                if (drumPattern) drumPattern.dispose();
+                if (ridePattern) ridePattern.dispose();
+                if (hihatPattern) hihatPattern.dispose();
+                
+                if (lastHighlightedEl) lastHighlightedEl.classList.remove('is-highlighted');
+                lastHighlightedEl = null;
+
+                const concertKey = keySelector.value;
+                const keySignaturePrefersSharps = keySignatures[concertKey] === 'sharp';
+                const displayTranspositionInterval = parseInt(transpositionSelector.value);
+
+                const rootKeyIndex = notesFlat.indexOf('C');
+                const concertKeyIndex = getNoteIndex(concertKey);
+                const playbackTransposeInterval = concertKeyIndex - rootKeyIndex;
+                const displayTransposeInterval = playbackTransposeInterval + displayTranspositionInterval;
+
+                const playbackChords = activeProgression.map(chord => {
+                     const parts = getNoteParts(chord);
+                     if (!parts) return "C7";
+                     const quality = chord.substring(parts.name.length);
+                     return transposeNote(parts.name + '3', playbackTransposeInterval, keySignaturePrefersSharps).slice(0, -1) + quality;
+                });
+                
+                const displayChords = activeProgression.map(chord => {
+                     const parts = getNoteParts(chord);
+                     if (!parts) return "C7";
+                     const quality = chord.substring(parts.name.length);
+                     return transposeNote(parts.name + '3', displayTransposeInterval, keySignaturePrefersSharps).slice(0, -1) + quality;
+                });
+                
+                displayFullProgression(displayChords, baseProgressionLengthInBars);
+                const bassNotes = generateWalkingBassline(playbackChords, keySignaturePrefersSharps);
+                const bassEvents = [];
+                const pianoEvents = [];
+                const highlightEvents = [];
+                let lastVoicingTopNote = 'G4'; // Start with a neutral middle note
+
+                // Generate Piano Rhythms and Voicings
+                for (let i = 0; i < playbackChords.length; /* i is incremented inside loop */) {
+                    const chord = playbackChords[i];
+                    const chordRootName = getNoteParts(chord)?.name || 'C';
+                    const useSharpsForChord = shouldUseSharps(chordRootName, keySignaturePrefersSharps);
+                    const time = `${Math.floor(i / 4)}:${i % 4}:0`;
+
+                    const isFullBarChord = (i % 4 === 0) && (i + 3 < playbackChords.length) &&
+                                           (playbackChords[i+1] === chord) &&
+                                           (playbackChords[i+2] === chord) &&
+                                           (playbackChords[i+3] === chord);
+
+                    const isTwoBeatChord = (i + 1 < playbackChords.length) &&
+                                           (playbackChords[i+1] === chord) &&
+                                           ((i + 2 >= playbackChords.length) || playbackChords[i+2] !== chord);
+
+                    // --- Voicing Selection Logic ---
+                    const possibleVoicings = getChordVoicings(chord, useSharpsForChord);
+                    let bestVoicing = possibleVoicings[0];
+                    if (possibleVoicings.length > 1) {
+                        let smallestDistance = Infinity;
+                        const lastMidi = Tone.Frequency(lastVoicingTopNote).toMidi();
+
+                        possibleVoicings.forEach(voicing => {
+                            const topNote = voicing[voicing.length - 1];
+                            const topMidi = Tone.Frequency(topNote).toMidi();
+                            const distance = Math.abs(topMidi - lastMidi);
+                            if (distance < smallestDistance) {
+                                smallestDistance = distance;
+                                bestVoicing = voicing;
+                            }
+                        });
+                    }
+                    
+                    // Adjust octave to stay in a good range
+                    let topNoteMidi = Tone.Frequency(bestVoicing[bestVoicing.length - 1]).toMidi();
+                    while (topNoteMidi > 72) { // C5
+                        bestVoicing = bestVoicing.map(n => transposeNote(n, -12, useSharpsForChord));
+                        topNoteMidi = Tone.Frequency(bestVoicing[bestVoicing.length - 1]).toMidi();
+                    }
+                    while (topNoteMidi < 55) { // G3
+                         bestVoicing = bestVoicing.map(n => transposeNote(n, 12, useSharpsForChord));
+                         topNoteMidi = Tone.Frequency(bestVoicing[bestVoicing.length - 1]).toMidi();
+                    }
+                    lastVoicingTopNote = bestVoicing[bestVoicing.length - 1];
+                    // --- End Voicing Selection ---
+
+                    if (isFullBarChord) {
+                        const bar = Math.floor(i / 4);
+                        const rhythm = PIANO_RHYTHMS[Math.floor(Math.random() * PIANO_RHYTHMS.length)];
+                        rhythm.forEach(note => {
+                            pianoEvents.push({
+                                time: `${bar}:${note.time}`,
+                                voicing: bestVoicing,
+                                duration: note.duration
+                            });
+                        });
+                        i += 4;
+                    } else if (isTwoBeatChord) {
+                        const rhythm = PIANO_RHYTHMS_2_BEAT[Math.floor(Math.random() * PIANO_RHYTHMS_2_BEAT.length)];
+                        // Convert the start time of the 2-beat chord into seconds for calculation
+                        const startTimeInSeconds = Tone.Time(time).toSeconds();
+                        rhythm.forEach(note => {
+                            // Convert the relative time of the note within the 2 beats into seconds
+                            const relativeTimeInSeconds = Tone.Time('0:' + note.time).toSeconds();
+                            // Add the seconds together to get the absolute time
+                            const totalTimeInSeconds = startTimeInSeconds + relativeTimeInSeconds;
+                            // Convert the total time back to BarsBeatsSixteenths format for the Tone.Part
+                            const eventTime = Tone.Time(totalTimeInSeconds).toBarsBeatsSixteenths();
+                            pianoEvents.push({
+                                time: eventTime,
+                                voicing: bestVoicing,
+                                duration: note.duration
+                            });
+                        });
+                        i += 2;
+                    } else {
+                        pianoEvents.push({ time: time, voicing: bestVoicing, duration: '4n' });
+                        i += 1;
+                    }
+                }
+
+                // Generate Bass and Highlight events for every beat
+                playbackChords.forEach((chord, index) => {
+                    const bar = Math.floor(index / 4);
+                    const beat = index % 4;
+                    const time = `${bar}:${beat}:0`;
+                    bassEvents.push({ time, note: bassNotes[index] });
+                    highlightEvents.push({ time, index });
+                });
+
+                pianoPart = new Tone.Part((time, value) => {
+                    piano.triggerAttackRelease(value.voicing, value.duration, time);
+                }, pianoEvents);
+                
+                bassPart = new Tone.Part((time, value) => {
+                    const duration = Tone.Time('8n.').toSeconds() + Tone.Time('16n').toSeconds();
+                    bass.triggerAttackRelease(value.note, duration, time);
+                }, bassEvents);
+
+                const beatsInBaseProgression = baseProgressionLengthInBars * 4;
+                highlightPart = new Tone.Part((time, value) => {
+                    Tone.Draw.schedule(() => {
+                        if (lastHighlightedEl) lastHighlightedEl.classList.remove('is-highlighted');
+                        const displayIndex = value.index % beatsInBaseProgression;
+                        const currentEl = document.getElementById(`chord-span-${displayIndex}`);
+                        if (currentEl) {
+                            currentEl.classList.add('is-highlighted');
+                            lastHighlightedEl = currentEl;
+                        }
+                    }, time);
+                }, highlightEvents);
+
+                const loopEnd = `${activeProgression.length / 4}m`;
+                pianoPart.loop = true;
+                pianoPart.loopEnd = loopEnd;
+                bassPart.loop = true;
+                bassPart.loopEnd = loopEnd;
+                highlightPart.loop = true;
+                highlightPart.loopEnd = loopEnd;
+
+                // Create drum parts
+                drumPattern = new Tone.Part((time, note) => {
+                    if (note === 'kick') kick.triggerAttackRelease('C1', '8n', time);
+                    if (note === 'snare') snare.triggerAttackRelease('8n', time);
+                }, [
+                    { time: '0:0:0', note: 'kick' }, { time: '0:0:2', note: 'snare' }, { time: '0:1:0', note: 'kick' }, { time: '0:1:2', note: 'snare' }
+                ]);
+                drumPattern.loop = true;
+                drumPattern.loopEnd = '1m';
+
+                ridePattern = new Tone.Part((time, note) => {
+                    rideCymbal.triggerAttack('C4', time);
+                }, [
+                    { time: '0:0:0' }, { time: '0:1:0' }, { time: '0:1:2' },
+                    { time: '0:2:0' }, { time: '0:3:0' }, { time: '0:3:2' }
+                ]);
+                ridePattern.loop = true;
+                ridePattern.loopEnd = '1m';
+                
+                hihatPattern = new Tone.Part((time, note) => {
+                    hihat.triggerAttack('C4', Tone.Time(time) - 0.05);
+                }, [
+                    { time: '0:1:0' }, { time: '0:3:0' }
+                ]);
+                hihatPattern.loop = true;
+                hihatPattern.loopEnd = '1m';
+            }
+            
+            // --- Progression Generation and Update Logic ---
+            function updateActiveProgression() {
+                const selection = progressionSelector.value;
+                let baseProgression;
+
+                if (selection === 'randomDiatonic') {
+                    const diatonicChordsInC = ['CMaj7', 'Dm7', 'Em7', 'FMaj7', 'G7', 'Am7', 'Bdim7'];
+                    const randomProg = [];
+                    for (let j = 0; j < 16; j++) {
+                        const randomChord = diatonicChordsInC[Math.floor(Math.random() * diatonicChordsInC.length)];
+                        randomProg.push(randomChord, randomChord, randomChord, randomChord);
+                    }
+                    baseProgression = randomProg;
+                } else if (selection === 'randomAdvanced') {
+                    const qualities = ['Maj7', 'm7', '7', 'm7b5', 'dim7', 'mMaj7', '7b5', 'm6'];
+                    const randomProg = [];
+                    for (let j = 0; j < 16; j++) {
+                        const randomRoot = notesFlat[Math.floor(Math.random() * notesFlat.length)];
+                        const randomQuality = qualities[Math.floor(Math.random() * qualities.length)];
+                        const randomChord = randomRoot + randomQuality;
+                        randomProg.push(randomChord, randomChord, randomChord, randomChord);
+                    }
+                    baseProgression = randomProg;
+                } else {
+                    baseProgression = progressions[selection] || [];
+                }
+
+                const barsPerLoop = baseProgression.length / 4;
+                const numLoops = Math.ceil(256 / barsPerLoop);
+                let fullProgression = [];
+
+                for (let i = 0; i < numLoops; i++) {
+                    fullProgression = fullProgression.concat(baseProgression);
+                }
+
+                activeProgression = fullProgression;
+
+                if (isPlaying) {
+                    stopPlayback();
+                }
+                setupSequence(barsPerLoop);
+            }
+
+
+            // --- Event Listeners ---
+            const stopPlayback = () => {
+                isPlaying = false;
+                Tone.Transport.stop();
+                piano.releaseAll();
+                rideCymbal.releaseAll();
+                bass.releaseAll();
+                hihat.releaseAll();
+                if (lastHighlightedEl) lastHighlightedEl.classList.remove('is-highlighted');
+                lastHighlightedEl = null;
+                playStopBtn.textContent = 'Play';
+                // Change button color to green for "Play"
+                playStopBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+                playStopBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+            }
+
+            const startPlayback = () => {
+                isPlaying = true;
+                Tone.Transport.lookAhead = 0.2;
+                
+                Tone.Transport.start();
+                pianoPart.start(0);
+                bassPart.start(0);
+                highlightPart.start(0);
+                drumPattern.start(0);
+                ridePattern.start(0);
+                hihatPattern.start(0);
+                playStopBtn.textContent = 'Stop';
+                // Change button color to red for "Stop"
+                playStopBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+                playStopBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+            }
+
+            const updateBassRelease = () => {
+                const thirtySecondNoteDuration = Tone.Time('32n').toSeconds();
+                bass.release = thirtySecondNoteDuration * 0.95;
+            };
+
+            playStopBtn.addEventListener('click', async () => {
+                if (Tone.context.state !== 'running') await Tone.start();
+                
+                if (isPlaying) {
+                    stopPlayback();
+                } else {
+                    startPlayback();
+                }
+            });
+
+            tempoSlider.addEventListener('input', (e) => {
+                Tone.Transport.bpm.value = parseInt(e.target.value);
+                tempoValue.textContent = e.target.value;
+                updateBassRelease();
+            });
+
+            volumeSlider.addEventListener('input', (e) => {
+                const db = Tone.gainToDb(parseInt(e.target.value) / 100);
+                Tone.Destination.volume.value = db < -39 ? -Infinity : db;
+                volumeValue.textContent = e.target.value;
+            });
+
+            keySelector.addEventListener('change', updateActiveProgression);
+            progressionSelector.addEventListener('change', updateActiveProgression);
+            transpositionSelector.addEventListener('change', updateActiveProgression);
+            
+            mutePianoBtn.addEventListener('click', () => {
+                pianoVolume.mute = !pianoVolume.mute;
+                mutePianoBtn.classList.toggle('muted');
+            });
+            
+            muteBassBtn.addEventListener('click', () => {
+                bassVolume.mute = !bassVolume.mute;
+                muteBassBtn.classList.toggle('muted');
+            });
+
+            muteDrumsBtn.addEventListener('click', () => {
+                drumsVolume.mute = !drumsVolume.mute;
+                muteDrumsBtn.classList.toggle('muted');
+            });
+
+            // --- Initial Setup ---
+            Tone.Transport.bpm.value = 120;
+            Tone.Transport.swing = 0.6;
+            const initialVolume = parseInt(volumeSlider.value);
+            Tone.Destination.volume.value = Tone.gainToDb(initialVolume / 100);
+            updateBassRelease();
+            updateActiveProgression(); // Initial progression setup
+        });
+    </script>
+</body>
+</html>
