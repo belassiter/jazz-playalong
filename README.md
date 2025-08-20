@@ -47,7 +47,8 @@ This tool runs entirely in your web browser. Just open the `shedit.html` file to
 *   **Web Audio**: Audio scheduling, synthesis, and sample playback are handled by **Tone.js**.
 *   **Audio Samples**:
     *   Piano samples are from the Salamander Grand Piano set provided by the Tone.js examples.
-    *   Bass and Cymbal samples are hosted at `belassiter.com`.
+    *   Bass sample is from https://samplefocus.com/samples/jazz-basso-plunge-sustained
+    *   Cymbal samples are from https://github.com/studiorack/virtuosity-drums
 
 ## License
 
