@@ -53,19 +53,39 @@
             cursor: not-allowed;
             background-color: #9ca3af; /* gray-400 */
         }
-        /* Style for the chord spans to ensure smooth transition */
+        
+        /* The outer span acts as a rigid, left-aligned column */
         .chord-span {
-            transition: background-color 0.1s ease-in-out, color 0.1s ease-in-out;
-            padding: 4px 8px; /* Added horizontal padding */
-            border-radius: 6px;
-            display: inline-block; /* Changed for better padding behavior */
             width: 25%; 
-            text-align: center;
+            text-align: left;
         }
-        .chord-span.is-highlighted {
+
+        /* The inner span is the flexible, styled highlight box */
+        .chord-highlight {
+            transition: background-color 0.1s ease-in-out, color 0.1s ease-in-out;
+            padding: 4px 8px;
+            border-radius: 6px;
+            display: inline-block;
+            min-width: 100%; /* Ensures highlight is at least the width of the column */
+        }
+
+        /* When the outer span is highlighted, the inner span gets the styles */
+        .chord-span.is-highlighted .chord-highlight {
             background-color: #2563eb; /* bg-blue-600 */
             color: white;
         }
+        
+        /* New styles for empty beats on 2 and 4 */
+        .chord-span.is-empty-beat {
+            text-align: right; /* Aligns the inline-block child to the right */
+        }
+
+        .chord-span.is-empty-beat .chord-highlight {
+            min-width: 50%;
+            width: 50%;
+        }
+
+
         .mute-btn {
             background-color: #22c55e; /* green-500 */
         }
@@ -433,7 +453,7 @@
 
             const getNoteParts = (noteName) => {
                 if (typeof noteName !== 'string') return null;
-                const match = noteName.match(/^([A-G][b#]?)(\d*)/);
+                const match = noteName.match(/^([A-G][b#]?)(.*)/);
                 if (!match) return null;
                 return { name: match[1], octave: match[2] ? parseInt(match[2]) : null };
             };
@@ -549,16 +569,31 @@
                         const chordIndex = i * beatsPerMeasure + j;
                         const chord = chords[chordIndex];
                         
-                        const chordSpan = document.createElement('span');
-                        chordSpan.className = 'chord-span flex-1 text-[10px] sm:text-sm md:text-base lg:text-lg font-semibold text-gray-700';
-                        chordSpan.id = `chord-span-${chordIndex}`;
+                        const outerSpan = document.createElement('span');
+                        outerSpan.className = 'chord-span';
+                        outerSpan.id = `chord-span-${chordIndex}`;
 
-                        if (j > 0 && chord === chords[chordIndex - 1]) {
-                            chordSpan.innerHTML = '&nbsp;';
+                        const innerSpan = document.createElement('span');
+                        innerSpan.className = 'chord-highlight';
+
+                        const isEmpty = j > 0 && chord === chords[chordIndex - 1];
+
+                        if (isEmpty) {
+                            innerSpan.innerHTML = '&nbsp;';
+                            // Check if it's beat 2 or beat 4
+                            if (j === 1 || j === 3) {
+                                outerSpan.classList.add('is-empty-beat');
+                            }
+                            // New rule: if beat 3 is empty AND beat 4 is also empty, compress beat 3
+                            if (j === 2 && (chordIndex + 1 < chords.length) && chords[chordIndex + 1] === chord) {
+                                outerSpan.classList.add('is-empty-beat');
+                            }
                         } else {
-                            chordSpan.innerHTML = formatChordSymbol(chord);
+                            innerSpan.innerHTML = formatChordSymbol(chord);
                         }
-                        measureWrapper.appendChild(chordSpan);
+                        
+                        outerSpan.appendChild(innerSpan);
+                        measureWrapper.appendChild(outerSpan);
                     }
                     progressionDisplay.appendChild(measureWrapper);
                 }
