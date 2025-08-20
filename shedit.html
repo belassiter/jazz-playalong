@@ -237,9 +237,29 @@
             // --- Note & Chord Data ---
             const notesSharp = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
             const notesFlat = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
-            const keySignatures = {
-                'C': 'sharp', 'G': 'sharp', 'D': 'sharp', 'A': 'sharp', 'E': 'sharp', 'B': 'sharp', 'F#': 'sharp',
-                'F': 'flat', 'Bb': 'flat', 'Eb': 'flat', 'Ab': 'flat', 'Db': 'flat', 'Gb': 'flat'
+            
+            const keyComplexity = {
+                'C': 0, 
+                'G': 1, 'F': -1,
+                'D': 2, 'Bb': -2,
+                'A': 3, 'Eb': -3,
+                'E': 4, 'Ab': -4,
+                'B': 5, 'Db': -5,
+                'F#': 5.9, 'Gb': -6.1,
+                'C#': 7, 'Cb': -7,
+                'G#': 8, 'Fb': -8,
+                'D#': 9,
+                'A#': 10,
+                'E#': 11
+            };
+
+            const qualityAdjustment = {
+                "Maj7": 0,
+                "m7": -2,
+                "7": -1,
+                "m7b5": -5,
+                "7b9": -4,
+                "mMaj7": -3
             };
             
             const progressions = {
@@ -473,10 +493,41 @@
                 return notes[adjustedIndex];
             };
 
-            const shouldUseSharps = (noteName, keySignaturePrefersSharps) => {
-                if (noteName.includes('b')) return false;
-                if (noteName.includes('#')) return true;
-                return keySignaturePrefersSharps;
+            const getEnharmonicEquivalent = (noteName) => {
+                const index = getNoteIndex(noteName);
+                if (index === -1) return null;
+                const sharpVersion = getNoteFromIndex(index, true);
+                const flatVersion = getNoteFromIndex(index, false);
+                if (sharpVersion === flatVersion) return null; // Not an enharmonic note
+                return noteName === sharpVersion ? flatVersion : sharpVersion;
+            };
+
+            const getBestSpelling = (chord) => {
+                const parts = getNoteParts(chord);
+                if (!parts) return chord;
+                const root = parts.name;
+                const quality = chord.substring(root.length);
+                
+                const enharmonicRoot = getEnharmonicEquivalent(root);
+                if (!enharmonicRoot) return chord; // No choice to make
+
+                const adj = Object.keys(qualityAdjustment).find(q => quality.startsWith(q));
+                const adjustment = adj ? qualityAdjustment[adj] : 0;
+
+                let score1 = Math.abs(keyComplexity[root] + adjustment);
+                let score2 = Math.abs(keyComplexity[enharmonicRoot] + adjustment);
+
+                const keyFlavorIsFlat = keyComplexity[keySelector.value] < 0;
+
+                if (keyFlavorIsFlat) {
+                    if (keyComplexity[root] < 0) score1 -= 0.2;
+                    if (keyComplexity[enharmonicRoot] < 0) score2 -= 0.2;
+                } else { // keyFlavor is sharp
+                    if (keyComplexity[root] > 0) score1 -= 0.2;
+                    if (keyComplexity[enharmonicRoot] > 0) score2 -= 0.2;
+                }
+
+                return score1 <= score2 ? chord : enharmonicRoot + quality;
             };
 
             function transposeNote(noteName, semitones, useSharps) {
@@ -600,19 +651,14 @@
             }
 
             // --- WALKING BASSLINE GENERATOR ---
-            function generateWalkingBassline(chords, keySignaturePrefersSharps) {
+            function generateWalkingBassline(chords) {
                 const bassline = [];
                 const baseOctave = 2;
                 let lastOctave = baseOctave;
 
                 for (let i = 0; i < chords.length; i++) {
                     const currentChord = chords[i];
-                    const chordRootName = getNoteParts(currentChord)?.name || 'C';
-                    const useSharpsForChord = shouldUseSharps(chordRootName, keySignaturePrefersSharps);
-
-                    const prevChord = i > 0 ? chords[i - 1] : null;
-                    const nextChord = chords[(i + 1) % chords.length];
-                    const tones = getChordTones(currentChord, useSharpsForChord);
+                    const tones = getChordTones(currentChord, false);
                     let noteName;
 
                     const prevNoteName = i > 0 ? getNoteParts(bassline[i - 1])?.name : null;
@@ -628,24 +674,24 @@
                         continue;
                     }
 
-                    const isNewChord = (i === 0 || currentChord !== prevChord);
-                    const isApproachBeat = currentChord !== nextChord;
+                    const isNewChord = (i === 0 || currentChord !== chords[i - 1]);
+                    const isApproachBeat = (i + 1 < chords.length) && currentChord !== chords[i + 1];
                     const isBeatOne = i % 4 === 0;
 
                     if (isNewChord) {
                         noteName = tones.root;
                     } 
                     else if (isApproachBeat) {
-                        const nextTones = getChordTones(nextChord, useSharpsForChord);
+                        const nextTones = getChordTones(chords[i + 1], false);
                         if (nextTones) {
                             const targetRootIndex = getNoteIndex(nextTones.root);
                             const approachOptions = [
-                                getNoteFromIndex(targetRootIndex - 1, useSharpsForChord),
-                                getNoteFromIndex(targetRootIndex + 1, useSharpsForChord),
-                                getNoteFromIndex(targetRootIndex - 2, useSharpsForChord),
-                                getNoteFromIndex(targetRootIndex + 2, useSharpsForChord),
-                                getNoteFromIndex(targetRootIndex + 7, useSharpsForChord),
-                                getNoteFromIndex(targetRootIndex - 5, useSharpsForChord),
+                                getNoteFromIndex(targetRootIndex - 1, false),
+                                getNoteFromIndex(targetRootIndex + 1, false),
+                                getNoteFromIndex(targetRootIndex - 2, false),
+                                getNoteFromIndex(targetRootIndex + 2, false),
+                                getNoteFromIndex(targetRootIndex + 7, false),
+                                getNoteFromIndex(targetRootIndex - 5, false),
                             ];
                             noteName = selectNote(approachOptions);
                         } else {
@@ -698,7 +744,6 @@
                 lastHighlightedEl = null;
 
                 const concertKey = keySelector.value;
-                const keySignaturePrefersSharps = keySignatures[concertKey] === 'sharp';
                 const displayTranspositionInterval = parseInt(transpositionSelector.value);
 
                 const rootKeyIndex = notesFlat.indexOf('C');
@@ -710,18 +755,19 @@
                      const parts = getNoteParts(chord);
                      if (!parts) return "C7";
                      const quality = chord.substring(parts.name.length);
-                     return transposeNote(parts.name + '3', playbackTransposeInterval, keySignaturePrefersSharps).slice(0, -1) + quality;
+                     return transposeNote(parts.name + '3', playbackTransposeInterval, false).slice(0, -1) + quality;
                 });
                 
                 const displayChords = activeProgression.map(chord => {
                      const parts = getNoteParts(chord);
                      if (!parts) return "C7";
                      const quality = chord.substring(parts.name.length);
-                     return transposeNote(parts.name + '3', displayTransposeInterval, keySignaturePrefersSharps).slice(0, -1) + quality;
+                     const transposedRoot = transposeNote(parts.name + '3', displayTransposeInterval, true).slice(0, -1);
+                     return getBestSpelling(transposedRoot + quality);
                 });
                 
                 displayFullProgression(displayChords, baseProgressionLengthInBars);
-                const bassNotes = generateWalkingBassline(playbackChords, keySignaturePrefersSharps);
+                const bassNotes = generateWalkingBassline(playbackChords);
                 const bassEvents = [];
                 const pianoEvents = [];
                 const highlightEvents = [];
@@ -730,8 +776,6 @@
                 // Generate Piano Rhythms and Voicings
                 for (let i = 0; i < playbackChords.length; /* i is incremented inside loop */) {
                     const chord = playbackChords[i];
-                    const chordRootName = getNoteParts(chord)?.name || 'C';
-                    const useSharpsForChord = shouldUseSharps(chordRootName, keySignaturePrefersSharps);
                     const time = `${Math.floor(i / 4)}:${i % 4}:0`;
 
                     const isFullBarChord = (i % 4 === 0) && (i + 3 < playbackChords.length) &&
@@ -744,7 +788,7 @@
                                            ((i + 2 >= playbackChords.length) || playbackChords[i+2] !== chord);
 
                     // --- Voicing Selection Logic ---
-                    const possibleVoicings = getChordVoicings(chord, useSharpsForChord);
+                    const possibleVoicings = getChordVoicings(chord, false);
                     let bestVoicing = possibleVoicings[0];
                     if (possibleVoicings.length > 1) {
                         let smallestDistance = Infinity;
@@ -764,11 +808,11 @@
                     // Adjust octave to stay in a good range
                     let topNoteMidi = Tone.Frequency(bestVoicing[bestVoicing.length - 1]).toMidi();
                     while (topNoteMidi > 72) { // C5
-                        bestVoicing = bestVoicing.map(n => transposeNote(n, -12, useSharpsForChord));
+                        bestVoicing = bestVoicing.map(n => transposeNote(n, -12, false));
                         topNoteMidi = Tone.Frequency(bestVoicing[bestVoicing.length - 1]).toMidi();
                     }
                     while (topNoteMidi < 55) { // G3
-                         bestVoicing = bestVoicing.map(n => transposeNote(n, 12, useSharpsForChord));
+                         bestVoicing = bestVoicing.map(n => transposeNote(n, 12, false));
                          topNoteMidi = Tone.Frequency(bestVoicing[bestVoicing.length - 1]).toMidi();
                     }
                     lastVoicingTopNote = bestVoicing[bestVoicing.length - 1];
